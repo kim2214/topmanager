@@ -14,6 +14,20 @@ class SystemMonitorNotifier extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
 
+  // 그래프용 사용률 히스토리(0~100 퍼센트). 가장 오래된 값이 앞,
+  // 최신 값이 뒤. maxHistory 개수를 넘으면 앞에서부터 버린다.
+  static const int maxHistory = 60;
+  final List<double> cpuHistory = [];
+  final List<double> ramHistory = [];
+
+  // 새 측정값을 히스토리에 넣고 오래된 값은 잘라낸다.
+  void _pushHistory(List<double> history, double value) {
+    history.add(value);
+    if (history.length > maxHistory) {
+      history.removeAt(0);
+    }
+  }
+
   void startMonitoring() {
     _timer?.cancel();
     isLoading = true;
@@ -24,6 +38,8 @@ class SystemMonitorNotifier extends ChangeNotifier {
       try {
         currentStatus = await _service.getMemoryStatus();
         cpuUsage = _cpuMonitor.getCpuUsage(); // FFI 호출 (동기)
+        _pushHistory(cpuHistory, cpuUsage);
+        _pushHistory(ramHistory, currentStatus!.usagePercentage);
         isLoading = false;
         errorMessage = null;
         notifyListeners(); // 데이터가 갱신되었으니 화면을 다시 그리라고 알림

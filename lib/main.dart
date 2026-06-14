@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'viewmodels/system_monitor_notifier.dart';
+import 'widgets/usage_chart.dart';
 
 void main() {
   runApp(const TopManager());
@@ -67,7 +68,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
             // 3. 정상적으로 데이터를 받아왔을 때
             final status = _notifier.currentStatus!;
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(32.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -95,6 +96,12 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     backgroundColor: Colors.grey[800],
                     color: _notifier.cpuUsage > 80 ? Colors.red : Colors.orange,
                   ),
+                  const SizedBox(height: 16),
+                  UsageChart(
+                    history: _notifier.cpuHistory,
+                    color: Colors.orange,
+                    capacity: SystemMonitorNotifier.maxHistory,
+                  ),
                   const Divider(height: 48),
                   // === RAM (MethodChannel로 수집) ===
                   const Icon(Icons.memory, size: 64, color: Colors.blueAccent),
@@ -116,6 +123,12 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     backgroundColor: Colors.grey[800],
                     color:
                         status.usagePercentage > 80 ? Colors.red : Colors.green,
+                  ),
+                  const SizedBox(height: 16),
+                  UsageChart(
+                    history: _notifier.ramHistory,
+                    color: Colors.blueAccent,
+                    capacity: SystemMonitorNotifier.maxHistory,
                   ),
                 ],
               ),
