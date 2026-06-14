@@ -46,9 +46,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('시스템 리소스 모니터'),
-      ),
+      appBar: AppBar(title: const Text('시스템 리소스 모니터')),
       body: Center(
         // ListenableBuilder가 _notifier의 변화를 감지하고 builder 내부만 다시 그림
         child: ListenableBuilder(
@@ -74,6 +72,31 @@ class _MonitorScreenState extends State<MonitorScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // === CPU (FFI로 수집) ===
+                  const Icon(
+                    Icons.developer_board,
+                    size: 64,
+                    color: Colors.orangeAccent,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    "CPU 사용률",
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "${_notifier.cpuUsage.toStringAsFixed(1)} %",
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: _notifier.cpuUsage / 100,
+                    minHeight: 12,
+                    backgroundColor: Colors.grey[800],
+                    color: _notifier.cpuUsage > 80 ? Colors.red : Colors.orange,
+                  ),
+                  const Divider(height: 48),
+                  // === RAM (MethodChannel로 수집) ===
                   const Icon(Icons.memory, size: 64, color: Colors.blueAccent),
                   const SizedBox(height: 24),
                   Text(
@@ -85,13 +108,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     "${status.usedGB.toStringAsFixed(2)} GB / ${status.totalGB.toStringAsFixed(2)} GB",
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   // 시각적인 프로그레스 바
                   LinearProgressIndicator(
                     value: status.usagePercentage / 100,
                     minHeight: 12,
                     backgroundColor: Colors.grey[800],
-                    color: status.usagePercentage > 80 ? Colors.red : Colors.green,
+                    color:
+                        status.usagePercentage > 80 ? Colors.red : Colors.green,
                   ),
                 ],
               ),

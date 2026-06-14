@@ -2,12 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/memory_status.dart';
 import '../services/system_monitor_service.dart';
+import '../services/cpu_monitor_ffi.dart';
 
 class SystemMonitorNotifier extends ChangeNotifier {
   final _service = SystemMonitorService();
+  final _cpuMonitor = CpuMonitorFfi();
   Timer? _timer;
 
   MemoryStatus? currentStatus;
+  double cpuUsage = 0; // FFI로 가져온 전체 CPU 사용률(0~100)
   bool isLoading = false;
   String? errorMessage;
 
@@ -20,6 +23,7 @@ class SystemMonitorNotifier extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       try {
         currentStatus = await _service.getMemoryStatus();
+        cpuUsage = _cpuMonitor.getCpuUsage(); // FFI 호출 (동기)
         isLoading = false;
         errorMessage = null;
         notifyListeners(); // 데이터가 갱신되었으니 화면을 다시 그리라고 알림

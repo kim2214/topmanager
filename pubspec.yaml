@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # dart:ffi로 네이티브 구조체(FILETIME)를 할당/해제하기 위한 calloc 제공.
+  ffi: ^2.1.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

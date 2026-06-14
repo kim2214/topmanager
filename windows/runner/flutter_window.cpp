@@ -1,4 +1,4 @@
-`#include "flutter_window.h"
+#include "flutter_window.h"
 
 #include <windows.h>
 
@@ -122,4 +122,3 @@ return
 Win32Window::MessageHandler(hwnd, message, wparam, lparam
 );
 }
-`
