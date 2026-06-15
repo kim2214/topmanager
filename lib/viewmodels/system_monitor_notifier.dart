@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/memory_status.dart';
 import '../services/system_monitor_service.dart';
-import '../services/cpu_monitor_ffi.dart';
+import '../services/cpu_monitor.dart';
 
 class SystemMonitorNotifier extends ChangeNotifier {
   final _service = SystemMonitorService();
-  final _cpuMonitor = CpuMonitorFfi();
+  final _cpuMonitor = CpuMonitor();
   Timer? _timer;
 
   MemoryStatus? currentStatus;

@@ -1,6 +1,8 @@
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
+import 'cpu_monitor.dart';
+
 /// Win32 FILETIME 구조체.
 ///
 /// 64비트 값을 32비트 두 개(low/high)로 나눠 담는다. CPU 시간은 100ns 단위
@@ -38,7 +40,7 @@ typedef _GetSystemTimesDart =
 ///
 /// 사용률은 "한 시점의 값"이 아니라 두 샘플 사이의 변화량으로 구해야 한다.
 /// 그래서 직전 샘플을 보관해 두고, 이번 호출과의 차이로 계산한다.
-class CpuMonitorFfi {
+class CpuMonitorFfi implements CpuMonitor {
   CpuMonitorFfi()
     : _getSystemTimes = DynamicLibrary.open(
         'kernel32.dll',
@@ -57,6 +59,7 @@ class CpuMonitorFfi {
   ///
   /// 첫 호출은 비교할 이전 샘플이 없어 0을 돌려주고 기준점만 저장한다.
   /// 1초 간격으로 주기 호출하면 그 구간의 평균 사용률이 나온다.
+  @override
   double getCpuUsage() {
     final idle = calloc<_FileTime>();
     final kernel = calloc<_FileTime>();
