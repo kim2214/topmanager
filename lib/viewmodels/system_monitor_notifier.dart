@@ -6,7 +6,9 @@ import '../services/cpu_monitor.dart';
 
 class SystemMonitorNotifier extends ChangeNotifier {
   final _service = SystemMonitorService();
-  final _cpuMonitor = CpuMonitor();
+  // 미지원 플랫폼(예: macOS)에서는 CpuMonitor() 생성 자체가 UnsupportedError를
+  // 던지므로, 필드 초기화 대신 startMonitoring()에서 try/catch로 생성한다.
+  CpuMonitor? _cpuMonitor;
   Timer? _timer;
 
   MemoryStatus? currentStatus;
@@ -30,14 +32,26 @@ class SystemMonitorNotifier extends ChangeNotifier {
 
   void startMonitoring() {
     _timer?.cancel();
+
+    // 현재 OS에 맞는 CPU 모니터를 생성. 지원하지 않는 플랫폼이면 여기서 막고
+    // 타이머를 시작하지 않아 앱이 죽지 않도록 한다.
+    try {
+      _cpuMonitor = CpuMonitor();
+    } catch (e) {
+      isLoading = false;
+      errorMessage = "이 플랫폼은 지원하지 않습니다: $e";
+      notifyListeners();
+      return;
+    }
+
     isLoading = true;
     notifyListeners(); // UI에 로딩 시작을 알림
 
-    // 1초마다 네이티브(C++)에 데이터 요청
+    // 1초마다 네이티브 또는 OS 파일에서 데이터 요청
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       try {
         currentStatus = await _service.getMemoryStatus();
-        cpuUsage = _cpuMonitor.getCpuUsage(); // FFI 호출 (동기)
+        cpuUsage = _cpuMonitor!.getCpuUsage();
         _pushHistory(cpuHistory, cpuUsage);
         _pushHistory(ramHistory, currentStatus!.usagePercentage);
         isLoading = false;

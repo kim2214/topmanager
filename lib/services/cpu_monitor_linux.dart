@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'cpu_monitor.dart';
 
 /// /proc/stat을 읽어 전체 CPU 사용률을 계산하는 Linux 구현.
@@ -15,47 +17,73 @@ class CpuMonitorLinux implements CpuMonitor {
 
   @override
   double getCpuUsage() {
-    final line = _readCpuLine();
-    if (line == null) return 0;
+    final content = _readStat();
+    if (content == null) return 0;
 
-    // "cpu" 라벨을 떼고 숫자만 추출.
-    final parts =
-        line
-            .split(RegExp(r'\s+'))
-            .skip(1)
-            .where((s) => s.isNotEmpty)
-            .map(int.parse)
-            .toList();
-    if (parts.length < 5) return 0;
-
-    // idle = idle(3) + iowait(4). 나머지를 모두 더한 값이 전체 시간.
-    final idle = parts[3] + parts[4];
-    final total = parts.reduce((a, b) => a + b);
+    final sample = parseCpuLine(content);
+    if (sample == null) return 0;
 
     // 첫 샘플: 기준점만 저장하고 0 반환.
     if (_prevTotal == null) {
-      _prevTotal = total;
-      _prevIdle = idle;
+      _prevTotal = sample.total;
+      _prevIdle = sample.idle;
       return 0;
     }
 
-    final totalDelta = total - _prevTotal!;
-    final idleDelta = idle - _prevIdle!;
+    final usage = computeUsage(
+      prevTotal: _prevTotal!,
+      prevIdle: _prevIdle!,
+      total: sample.total,
+      idle: sample.idle,
+    );
 
-    _prevTotal = total;
-    _prevIdle = idle;
+    _prevTotal = sample.total;
+    _prevIdle = sample.idle;
+    return usage;
+  }
 
+  /// /proc/stat 내용에서 전체 CPU 누적치를 파싱한다(파일 I/O 없는 순수 함수).
+  ///
+  /// 첫 줄 "cpu user nice system idle iowait irq softirq ..."에서
+  /// idle = idle + iowait, total = 모든 필드 합. 파싱 실패 시 null.
+  @visibleForTesting
+  static ({int total, int idle})? parseCpuLine(String content) {
+    final newline = content.indexOf('\n');
+    final line = newline == -1 ? content : content.substring(0, newline);
+
+    final parts = line
+        .split(RegExp(r'\s+'))
+        .skip(1) // "cpu" 라벨 제거
+        .where((s) => s.isNotEmpty)
+        .map(int.tryParse)
+        .toList();
+    if (parts.length < 5 || parts.any((p) => p == null)) return null;
+
+    final values = parts.cast<int>();
+    final idle = values[3] + values[4];
+    final total = values.reduce((a, b) => a + b);
+    return (total: total, idle: idle);
+  }
+
+  /// 두 샘플의 변화량으로 사용률(0~100%)을 계산한다(순수 함수).
+  @visibleForTesting
+  static double computeUsage({
+    required int prevTotal,
+    required int prevIdle,
+    required int total,
+    required int idle,
+  }) {
+    final totalDelta = total - prevTotal;
+    final idleDelta = idle - prevIdle;
     if (totalDelta <= 0) return 0;
     final busy = totalDelta - idleDelta;
     return (busy / totalDelta * 100).clamp(0, 100).toDouble();
   }
 
-  // /proc/stat의 첫 줄(전체 CPU 누적치)을 읽는다. 읽기에 실패하면 null.
-  String? _readCpuLine() {
+  // /proc/stat을 읽는다. 읽기에 실패하면 null.
+  String? _readStat() {
     try {
-      final content = File('/proc/stat').readAsStringSync();
-      final newline = content.indexOf('\n');
-      return newline == -1 ? content : content.substring(0, newline);
+      return File('/proc/stat').readAsStringSync();
     } catch (_) {
       return null;
     }

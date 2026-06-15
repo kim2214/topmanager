@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/memory_status.dart';
 
@@ -27,21 +28,40 @@ class SystemMonitorService {
       throw PlatformException(code: 'EMPTY_DATA', message: 'No data received');
     } on PlatformException catch (e) {
       // 에러 로깅 후 상위 레이어로 던짐
-      print("네이티브 통신 실패: ${e.message}");
+      debugPrint("네이티브 통신 실패: ${e.message}");
       rethrow;
     }
   }
 
-  // Linux: /proc/meminfo의 MemTotal / MemAvailable로 사용량을 구한다.
-  // Windows의 ullTotalPhys / ullAvailPhys와 같은 의미가 되도록 MemAvailable을
-  // "가용 메모리"로 보고 used = total - available 로 계산한다.
+  // Linux: /proc/meminfo를 읽어 사용량을 구한다.
   Future<MemoryStatus> _getLinuxMemoryStatus() async {
     final content = await File('/proc/meminfo').readAsString();
-
-    final total = _readMeminfoKb(content, 'MemTotal');
-    final available = _readMeminfoKb(content, 'MemAvailable');
-    if (total == null || available == null) {
+    final status = parseMeminfo(content);
+    if (status == null) {
       throw const FormatException('/proc/meminfo 파싱 실패');
+    }
+    return status;
+  }
+
+  /// /proc/meminfo 내용을 [MemoryStatus]로 파싱한다(파일 I/O 없는 순수 함수라
+  /// 단위 테스트하기 좋다). 파싱에 실패하면 null.
+  ///
+  /// Windows의 ullTotalPhys / ullAvailPhys와 같은 의미가 되도록 MemAvailable을
+  /// "가용 메모리"로 보고 used = total - available 로 계산한다.
+  /// MemAvailable은 커널 3.14+ 에만 있으므로, 없으면
+  /// MemFree + Buffers + Cached 로 근사 폴백한다.
+  @visibleForTesting
+  static MemoryStatus? parseMeminfo(String content) {
+    final total = _readMeminfoKb(content, 'MemTotal');
+    if (total == null) return null;
+
+    var available = _readMeminfoKb(content, 'MemAvailable');
+    if (available == null) {
+      final free = _readMeminfoKb(content, 'MemFree');
+      final buffers = _readMeminfoKb(content, 'Buffers');
+      final cached = _readMeminfoKb(content, 'Cached');
+      if (free == null || buffers == null || cached == null) return null;
+      available = free + buffers + cached;
     }
 
     // /proc/meminfo는 kB(=1024바이트) 단위라 바이트로 환산.
@@ -51,7 +71,7 @@ class SystemMonitorService {
   }
 
   // "MemTotal:    16384000 kB" 형태에서 숫자(kB)만 뽑아낸다.
-  int? _readMeminfoKb(String content, String key) {
+  static int? _readMeminfoKb(String content, String key) {
     final match = RegExp(
       '^$key:\\s+(\\d+)',
       multiLine: true,
