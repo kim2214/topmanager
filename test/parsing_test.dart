@@ -73,6 +73,43 @@ Buffers:         1024 kB
     });
   });
 
+  group('CpuMonitorLinux.parsePerCore', () {
+    const content = '''
+cpu  100 0 50 800 40 0 10 0
+cpu0 50 0 25 400 20 0 5 0
+cpu1 50 0 25 400 20 0 5 0
+intr 12345
+ctxt 67890
+''';
+
+    test('cpuN 줄만 코어별로 파싱한다(집계줄 cpu, 기타 줄 제외)', () {
+      final cores = CpuMonitorLinux.parsePerCore(content);
+
+      expect(cores.length, 2);
+      expect(cores[0].index, 0);
+      expect(cores[1].index, 1);
+      // idle = idle + iowait = 400 + 20
+      expect(cores[0].idle, 420);
+      expect(cores[0].total, 50 + 0 + 25 + 400 + 20 + 0 + 5 + 0);
+    });
+
+    test('코어 번호 오름차순으로 정렬한다', () {
+      const unordered = '''
+cpu  0 0 0 0 0
+cpu2 1 0 1 1 0
+cpu0 1 0 1 1 0
+cpu1 1 0 1 1 0
+''';
+      final cores = CpuMonitorLinux.parsePerCore(unordered);
+      expect(cores.map((c) => c.index).toList(), [0, 1, 2]);
+    });
+
+    test('코어 줄이 없으면 빈 리스트를 반환한다', () {
+      const noCores = 'cpu  100 0 50 800 40\nintr 1\n';
+      expect(CpuMonitorLinux.parsePerCore(noCores), isEmpty);
+    });
+  });
+
   group('CpuMonitorLinux.computeUsage', () {
     test('busy 비율을 0~100%로 계산한다', () {
       // 전체 100 증가 중 idle 25 증가 → 75% 사용.

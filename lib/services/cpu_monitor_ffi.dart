@@ -55,12 +55,13 @@ class CpuMonitorFfi implements CpuMonitor {
   int? _prevKernel;
   int? _prevUser;
 
-  /// 전체 CPU 사용률(0~100%)을 반환한다.
+  /// 전체 CPU 사용률을 측정한다.
   ///
-  /// 첫 호출은 비교할 이전 샘플이 없어 0을 돌려주고 기준점만 저장한다.
-  /// 1초 간격으로 주기 호출하면 그 구간의 평균 사용률이 나온다.
+  /// GetSystemTimes는 시스템 전체 합산값만 주므로 코어별 사용률은 지원하지
+  /// 않는다([CpuUsage.perCore]는 빈 리스트). 첫 호출은 비교할 이전 샘플이
+  /// 없어 0을 돌려주고 기준점만 저장한다.
   @override
-  double getCpuUsage() {
+  CpuUsage sample() {
     final idle = calloc<_FileTime>();
     final kernel = calloc<_FileTime>();
     final user = calloc<_FileTime>();
@@ -78,7 +79,7 @@ class CpuMonitorFfi implements CpuMonitor {
         _prevIdle = idleTime;
         _prevKernel = kernelTime;
         _prevUser = userTime;
-        return 0;
+        return const CpuUsage(total: 0);
       }
 
       final idleDelta = idleTime - _prevIdle!;
@@ -92,9 +93,10 @@ class CpuMonitorFfi implements CpuMonitor {
       // kernelTime은 idle 시간을 이미 포함한다. 따라서
       // 전체 시간 = kernel + user, 사용한 시간 = 전체 - idle.
       final total = kernelDelta + userDelta;
-      if (total == 0) return 0;
+      if (total == 0) return const CpuUsage(total: 0);
       final busy = total - idleDelta;
-      return (busy / total * 100).clamp(0, 100).toDouble();
+      final usage = (busy / total * 100).clamp(0, 100).toDouble();
+      return CpuUsage(total: usage);
     } finally {
       // 네이티브 메모리는 GC 대상이 아니므로 반드시 직접 해제한다.
       calloc.free(idle);

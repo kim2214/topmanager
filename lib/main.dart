@@ -102,6 +102,16 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     color: Colors.orange,
                     capacity: SystemMonitorNotifier.maxHistory,
                   ),
+                  // === 코어별 CPU (지원 플랫폼에서만 표시) ===
+                  if (_notifier.perCoreUsage.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      "코어별 사용률",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    _PerCoreGrid(usages: _notifier.perCoreUsage),
+                  ],
                   const Divider(height: 48),
                   // === RAM (MethodChannel로 수집) ===
                   const Icon(Icons.memory, size: 64, color: Colors.blueAccent),
@@ -136,6 +146,49 @@ class _MonitorScreenState extends State<MonitorScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// 코어별 CPU 사용률을 작은 막대 그리드로 보여주는 위젯.
+///
+/// 인덱스가 코어 번호(C0, C1, ...)이며, 화면 폭에 맞춰 자동 줄바꿈된다.
+class _PerCoreGrid extends StatelessWidget {
+  const _PerCoreGrid({required this.usages});
+
+  /// 코어별 사용률(0~100). 인덱스 = 코어 번호.
+  final List<double> usages;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      children: [
+        for (int i = 0; i < usages.length; i++)
+          SizedBox(
+            width: 150,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("C$i", style: const TextStyle(color: Colors.grey)),
+                    Text("${usages[i].toStringAsFixed(0)} %"),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: usages[i] / 100,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey[800],
+                  color: usages[i] > 80 ? Colors.red : Colors.orange,
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
