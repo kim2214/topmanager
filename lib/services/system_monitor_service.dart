@@ -64,10 +64,19 @@ class SystemMonitorService {
       available = free + buffers + cached;
     }
 
+    // 스왑(있을 때만). SwapUsed = SwapTotal - SwapFree. 없으면 0.
+    final swapTotal = _readMeminfoKb(content, 'SwapTotal') ?? 0;
+    final swapFree = _readMeminfoKb(content, 'SwapFree') ?? 0;
+
     // /proc/meminfo는 kB(=1024바이트) 단위라 바이트로 환산.
     final totalBytes = total * 1024;
     final usedBytes = (total - available) * 1024;
-    return MemoryStatus(totalBytes: totalBytes, usedBytes: usedBytes);
+    return MemoryStatus(
+      totalBytes: totalBytes,
+      usedBytes: usedBytes,
+      swapTotalBytes: swapTotal * 1024,
+      swapUsedBytes: (swapTotal - swapFree) * 1024,
+    );
   }
 
   // "MemTotal:    16384000 kB" 형태에서 숫자(kB)만 뽑아낸다.

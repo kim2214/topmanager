@@ -140,6 +140,34 @@ class _MonitorScreenState extends State<MonitorScreen> {
                     color: Colors.blueAccent,
                     capacity: SystemMonitorNotifier.maxHistory,
                   ),
+                  // === 스왑 (존재할 때만 표시) ===
+                  if (status.hasSwap) ...[
+                    const Divider(height: 48),
+                    const Icon(
+                      Icons.swap_horiz,
+                      size: 64,
+                      color: Colors.purpleAccent,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      "스왑 사용량",
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "${status.swapUsedGB.toStringAsFixed(2)} GB / ${status.swapTotalGB.toStringAsFixed(2)} GB",
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    LinearProgressIndicator(
+                      value: status.swapUsagePercentage / 100,
+                      minHeight: 12,
+                      backgroundColor: Colors.grey[800],
+                      color: status.swapUsagePercentage > 80
+                          ? Colors.red
+                          : Colors.purpleAccent,
+                    ),
+                  ],
                 ],
               ),
             );

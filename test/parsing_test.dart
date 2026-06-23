@@ -35,6 +35,34 @@ Cached:          2048 kB
       expect(status!.usedBytes, (16384 - available) * 1024);
     });
 
+    test('SwapTotal/SwapFree로 스왑 사용량을 계산한다', () {
+      const content = '''
+MemTotal:       16384 kB
+MemAvailable:    8192 kB
+SwapTotal:       4096 kB
+SwapFree:        1024 kB
+''';
+      final status = SystemMonitorService.parseMeminfo(content);
+
+      expect(status, isNotNull);
+      expect(status!.hasSwap, isTrue);
+      expect(status.swapTotalBytes, 4096 * 1024);
+      // used = (4096 - 1024) kB
+      expect(status.swapUsedBytes, (4096 - 1024) * 1024);
+    });
+
+    test('스왑 정보가 없으면 hasSwap이 false다', () {
+      const content = '''
+MemTotal:       16384 kB
+MemAvailable:    8192 kB
+''';
+      final status = SystemMonitorService.parseMeminfo(content);
+
+      expect(status, isNotNull);
+      expect(status!.hasSwap, isFalse);
+      expect(status.swapTotalBytes, 0);
+    });
+
     test('MemTotal이 없으면 null을 반환한다', () {
       const content = 'MemFree: 4096 kB\n';
       expect(SystemMonitorService.parseMeminfo(content), isNull);
