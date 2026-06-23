@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/memory_status.dart';
 import '../services/system_monitor_service.dart';
 import '../services/cpu_monitor.dart';
+import '../services/network_monitor.dart';
 
 class SystemMonitorNotifier extends ChangeNotifier {
   final _service = SystemMonitorService();
@@ -10,11 +11,14 @@ class SystemMonitorNotifier extends ChangeNotifier {
   // 미지원 플랫폼(예: macOS)에서는 CpuMonitor() 생성 자체가 UnsupportedError를
   // 던지므로, 필드 초기화 대신 startMonitoring()에서 try/catch로 생성한다.
   CpuMonitor? _cpuMonitor;
+  // 네트워크 모니터는 미지원 플랫폼에서도 예외를 던지지 않으므로 바로 생성한다.
+  final _networkMonitor = NetworkMonitor();
   Timer? _timer;
 
   MemoryStatus? currentStatus;
   double cpuUsage = 0; // 전체 CPU 사용률(0~100)
   List<double> perCoreUsage = const []; // 코어별 사용률(0~100). 미지원 시 빈 리스트.
+  NetworkUsage networkUsage = const NetworkUsage(); // 네트워크 속도. 미지원 시 available=false.
   bool isLoading = false;
   String? errorMessage;
 
@@ -56,6 +60,7 @@ class SystemMonitorNotifier extends ChangeNotifier {
         final cpu = _cpuMonitor!.sample();
         cpuUsage = cpu.total;
         perCoreUsage = cpu.perCore;
+        networkUsage = _networkMonitor.sample();
         _pushHistory(cpuHistory, cpuUsage);
         _pushHistory(ramHistory, currentStatus!.usagePercentage);
         isLoading = false;

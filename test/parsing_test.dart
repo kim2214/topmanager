@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:topmanager/main.dart';
 import 'package:topmanager/services/cpu_monitor_linux.dart';
+import 'package:topmanager/services/network_monitor_linux.dart';
 import 'package:topmanager/services/system_monitor_service.dart';
 
 void main() {
@@ -179,6 +181,59 @@ cpu1 1 0 1 1 0
         ),
         100,
       );
+    });
+  });
+
+  group('NetworkMonitorLinux.parseTotals', () {
+    test('lo를 제외하고 모든 인터페이스의 rx/tx를 합산한다', () {
+      const content = '''
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 1000  10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0
+  eth0: 5000 50 0 0 0 0 0 0 2000 20 0 0 0 0 0 0
+ wlan0: 3000 30 0 0 0 0 0 0 1000 10 0 0 0 0 0 0
+''';
+      final totals = NetworkMonitorLinux.parseTotals(content);
+
+      expect(totals, isNotNull);
+      // lo(1000)는 제외, eth0+wlan0 만 합산.
+      expect(totals!.rx, 5000 + 3000);
+      expect(totals.tx, 2000 + 1000);
+    });
+
+    test('유효한 인터페이스가 없으면 null을 반환한다(헤더/lo만)', () {
+      const content = '''
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets ...
+    lo: 1000 10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0
+''';
+      expect(NetworkMonitorLinux.parseTotals(content), isNull);
+    });
+  });
+
+  group('NetworkMonitorLinux.computeRate', () {
+    test('delta를 경과 시간으로 나눠 B/s를 계산한다', () {
+      // 2초 동안 2048바이트 증가 → 1024 B/s.
+      expect(NetworkMonitorLinux.computeRate(1000, 3048, 2.0), 1024);
+    });
+
+    test('카운터 리셋(delta 음수)이면 0을 반환한다', () {
+      expect(NetworkMonitorLinux.computeRate(5000, 100, 1.0), 0);
+    });
+
+    test('경과 시간이 0 이하면 0을 반환한다', () {
+      expect(NetworkMonitorLinux.computeRate(0, 1000, 0), 0);
+    });
+  });
+
+  group('formatRate', () {
+    test('단위를 자동 선택한다', () {
+      expect(formatRate(0), '0 B/s');
+      expect(formatRate(512), '512 B/s');
+      expect(formatRate(1024), '1.0 KB/s');
+      expect(formatRate(1536), '1.5 KB/s');
+      expect(formatRate(1024 * 1024), '1.0 MB/s');
+      expect(formatRate(1024 * 1024 * 1024), '1.0 GB/s');
     });
   });
 }

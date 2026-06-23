@@ -168,6 +168,34 @@ class _MonitorScreenState extends State<MonitorScreen> {
                           : Colors.purpleAccent,
                     ),
                   ],
+                  // === 네트워크 속도 (지원 플랫폼에서만 표시) ===
+                  if (_notifier.networkUsage.available) ...[
+                    const Divider(height: 48),
+                    const Icon(Icons.lan, size: 64, color: Colors.tealAccent),
+                    const SizedBox(height: 24),
+                    Text(
+                      "네트워크 속도",
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _NetRate(
+                          icon: Icons.south,
+                          label: "수신",
+                          bytesPerSec: _notifier.networkUsage.rxBytesPerSec,
+                          color: Colors.tealAccent,
+                        ),
+                        _NetRate(
+                          icon: Icons.north,
+                          label: "송신",
+                          bytesPerSec: _notifier.networkUsage.txBytesPerSec,
+                          color: Colors.amberAccent,
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             );
@@ -219,4 +247,54 @@ class _PerCoreGrid extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 네트워크 송신/수신 속도 하나를 아이콘 + 라벨 + 속도로 보여주는 위젯.
+class _NetRate extends StatelessWidget {
+  const _NetRate({
+    required this.icon,
+    required this.label,
+    required this.bytesPerSec,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final double bytesPerSec;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          formatRate(bytesPerSec),
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+      ],
+    );
+  }
+}
+
+/// 초당 바이트(B/s)를 사람이 읽기 쉬운 단위(B/s, KB/s, MB/s, GB/s)로 변환한다.
+String formatRate(double bytesPerSec) {
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  var value = bytesPerSec;
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  // B/s는 소수점이 의미 없으니 정수로, 그 외는 소수 첫째 자리까지.
+  final text = unit == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
+  return "$text ${units[unit]}";
 }
